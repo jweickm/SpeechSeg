@@ -1,0 +1,30 @@
+packages <- c("outliers","ggplot2",
+              "ggrepel", "ggtext",
+              "lme4", "lmerTest", "emmeans",
+              "fitdistrplus", "gamlss.dist", 
+              "data.table", "shiny", "plotly", 
+              "grid", "dplyr")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+
+data <- as.data.frame(recoveredData_2021_01_29)
+
+participantsList <- data %>% 
+  filter(Block == 'testing', totalFixationDuration_Intervals_FromEdfInSecs >= 1) %>%
+  group_by(Participant, Familiarity) %>%
+  count() %>%
+  filter(n >= 3) %>% 
+  ungroup(Familiarity) %>% 
+  select(Participant)
+
+filter <- participantsList %>% 
+  duplicated()
+
+t(participantsList[filter,])

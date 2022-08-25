@@ -1,0 +1,27 @@
+# images
+*.jpg
+*.jpeg
+*.raw
+*.tif
+*.tiff
+*.gif
+
+# audio
+*.mp3
+*.ogg
+
+# archives
+*.zip
+*.7zip
+*.rar
+
+# office files
+*.xlsx
+*.xls
+014_speech_sample_report.csv
+!Pseudorandom stimuli.xlsx
+Column Names Eyelink.pdf
+
+/old/*
+/alt_scripts/*
+

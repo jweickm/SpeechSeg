@@ -1,0 +1,3 @@
+"0","knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())"
+"0",""
+"0","source('data_analysis.R') # contains package setup and data import"

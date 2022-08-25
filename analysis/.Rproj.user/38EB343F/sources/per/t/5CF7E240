@@ -1,0 +1,27 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1606317385414.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "602950075",
+    "id" : "5CF7E240",
+    "lastKnownWriteTime" : 1606680127,
+    "last_content_update" : 1606680127950,
+    "path" : "~/OneDrive-Univie/University/StudAss/MindTheBody/SpeechSegmentation/analysis/data_analysis.Rmd",
+    "project_path" : "data_analysis.Rmd",
+    "properties" : {
+        "cursorPosition" : "22,36",
+        "last_setup_crc32" : "",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1606677151714.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2014963999",
+    "id" : "63402253",
+    "lastKnownWriteTime" : 1589651444,
+    "last_content_update" : 1606677177032,
+    "path" : "~/OneDrive-Univie/University/Psychologiemaster/R_SS_2020/hausaufgabe2_weickmann.rmd",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "43,0",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

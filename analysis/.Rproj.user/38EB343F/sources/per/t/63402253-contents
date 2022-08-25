@@ -1,0 +1,227 @@
+---
+title: "Hausübung 2 Weickmann"
+author: "Jakob Weickmann"
+date: "12 5 2020"
+output: html_document
+---
+```{r echo = FALSE}
+# Create data objects
+
+data_dir <- paste(getwd(), "/searchExp3_results", sep = "")
+
+filePaths <- list.files(data_dir,"\\.txt$",full.names= TRUE) # use regex search to save all txt-files in a list
+
+library(data.table) # load package 'data.table'
+listData <- lapply(filePaths, fread) # use function 'fread' on the files in the list
+
+dataRaw <- rbindlist(listData)
+
+dataProcessed = dataRaw # create a working copy of the raw data
+dataProcessed$cueCondition <- as.factor(dataRaw$cueCondition) # convert variables to factors
+dataProcessed$targetValidity <- as.factor(dataRaw$targetValidity)
+
+dataProcessed$sbj <- as.factor(dataProcessed$sbj)
+setkey(dataProcessed, block, answerCorrect) # sets a key to sort by column 'block' and then by column 'answerCorrect' within each group of column 'block'
+sbjToDelete = as.integer(
+    dataProcessed[.('testing', 0), .N, by = sbj][which.max(dataProcessed[.('testing', 0), .N, by = sbj]$N),1])
+# returns the subjekt ID of the row number with the highest N on the subset of rows that have a value of 'testing' for the 1st key and a value of '0' for the 2nd key
+dataProcessed = dataProcessed[sbj != sbjToDelete] # remove the subject with the most false responses (why though?)
+dataTesting = dataProcessed[block == 'testing'] # create subset of dataProcessed that only contains the 'testing' block
+
+library(outliers) # load package 'outliers'
+
+setkey(dataTesting, answerCorrect) # sort dataTesting by answerCorrect
+errorRate = dataTesting[.(c(0,99)), .N, by = sbj]
+errorRate[, 2] <- errorRate[, 2]*100/dataTesting[, .N, by = sbj][, 2]
+
+setkey(errorRate, sbj) # sort errorRate by sbj
+setnames(errorRate,"N","Error Rate in %")
+setnames(errorRate, "sbj", "Subject")
+
+errorRateOutlier = errorRate[c(outlier(errorRate[, 2], logical = TRUE))] # using logical indexing using the 'outlier' function to identify the outlier subject
+
+dataCorrected = dataTesting[sbj != as.integer(errorRateOutlier[, 1])]
+
+# zuerst die Variablen, die umgewandelt werden sollen, definieren (in die Variable 'factors' speichern)
+factors <- c("block", "answerCorrect", "sex", "hand", "targetcolor")
+
+setDT(dataCorrected)[, (factors) := lapply(.SD, as.factor), .SDcols = factors] # wendet die Funktion 'as.factor' auf alle Variablen im data frame 'dataRaw' mit dem gleichen Namen an
+# answerCorrect
+levels(dataCorrected$answerCorrect)[levels(dataCorrected$answerCorrect) == "0"] <- "wrong"
+levels(dataCorrected$answerCorrect)[levels(dataCorrected$answerCorrect) == "1"] <- "correct"
+levels(dataCorrected$answerCorrect)[levels(dataCorrected$answerCorrect) == "99"] <- "timeout"
+
+# sex
+levels(dataCorrected$sex)[levels(dataCorrected$sex) == "m"] <- "male"
+levels(dataCorrected$sex)[levels(dataCorrected$sex) == "w"] <- "female"
+
+# hand
+levels(dataCorrected$hand)[levels(dataCorrected$hand) == "l"] <- "left"
+levels(dataCorrected$hand)[levels(dataCorrected$hand) == "r"] <- "right"
+
+# targetcolor
+levels(dataCorrected$targetcolor)[levels(dataCorrected$targetcolor) == "a"] <- "red_horizontal"
+levels(dataCorrected$targetcolor)[levels(dataCorrected$targetcolor) == "b"] <- "green_vertical"
+dataFiltered = dataCorrected[
+                        dataCorrected$reactionTime >= 0.150 &
+                        dataCorrected$reactionTime <= 1.0 &
+                        dataCorrected$answerCorrect != "timeout"]
+correctAnswers_dt = dataFiltered[dataFiltered$answerCorrect == 'correct'] # separate correct
+```
+---
+
+### 1. Erzeugt ein Diagramm, das die korrekten Reaktionszeitverteilung jeder Versuchsperson in jeder relevanten experimentellen Bedingung zeigt. Verwendet dazu Violindiagramme und stellt alle Bedingungen in einem Diagramm dar (siehe Diagramm A der Beispieldiagramme).
+
+```{r fig.height=10, fig.width=12}
+library(ggplot2)
+ggplot(correctAnswers_dt, aes(targetValidity, 
+                           reactionTime, 
+                           fill = cueCondition)) + 
+  geom_violin(alpha = 0.9) + 
+  facet_wrap(vars(sbj)) +
+  scale_fill_viridis_d() + 
+  theme(legend.position = "right",
+        panel.background = element_blank(),
+        panel.grid = element_line(color = "gray"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  labs(title = "Reaction Time of Correct Responses per Subject", 
+       subtitle = "A Comparison between Conditions and Target Validity",
+       tag = "1",
+       y = "Reaction Time [ms]",
+       x = "Target Validity", 
+       fill = "Cue Condition") + 
+  scale_y_continuous(labels = function(x) x * 1000)
+```
+
+### 2. Erzeugt ein Diagramm mit den Mittelwerten der Reaktionszeiten der korrekten Antworten jeder relevanten experimentellen Bedingung inklusive der Standardfehler als Fehlerbalken. Die Mittelwerte sollen als Punkte dargestellt werden, die über die Variable cueCondition mit einer Linie verbunden sind (siehe Diagramm B der Beispieldiagramme). Außerdem soll der Mittelwert als gerundete Zahl in Millisekunden im Diagramm stehen. Das funktioniert am einfachsten mit geom_text_repel().  Auf der Achse sollen auch Millisekunden anstatt Sekunden aufgezeichnet sein.
+
+First we calculate the mean values of the reaction time (RT) and their standard error (SE).
+
+```{r}
+reactionTime_means_se = correctAnswers_dt[,.(meanReactionTime = mean(reactionTime), seReactionTime = sd(reactionTime) /sqrt(length(reactionTime))), by = .(cueCondition, targetValidity)]
+```
+
+```{r fig.height=5, fig.width=6}
+library(ggplot2)
+library(ggrepel)
+ggplot(reactionTime_means_se, 
+       aes(cueCondition, 
+           meanReactionTime, 
+           color = targetValidity,
+           group = targetValidity)) + 
+  geom_point(alpha = 0.9) + 
+  scale_fill_viridis_d() + 
+  theme(legend.position = "right",
+        panel.background = element_blank(),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_line(color = "gray"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_line(color = "gray")) +
+  labs(title = "Mean Reaction Time per Condition", 
+       subtitle = "A Comparison between valid and invalid targets",
+       tag = "2",
+       y = "Reaction Time [ms]",
+       x = "Cue Condition", 
+       color = "Target Validity") + 
+  scale_y_continuous(labels = function(x) x * 1000) + 
+  geom_errorbar(aes (ymin  =  meanReactionTime - seReactionTime,
+                     ymax  =  meanReactionTime + seReactionTime),
+                width = 0.1) + 
+  geom_text_repel(aes(label = round(meanReactionTime * 1000, 0)),
+                  size = 3, 
+                  nudge_x = 0.05,
+                  colour = 'black') + 
+  geom_line()
+```
+
+
+### 3. Erzeugt das gleiche Diagramm wie bei der 2. Aufgabe, allerdings nun mit dem mittleren Validitätseffekt (Achtung, der Validitätseffekt muss für jede Person in jeder Bedingung berechnet werden, damit es dann einen Mittelwert mit Standardabweichung gibt) und dem 95-%-Konfidenzintervall als Fehlerbalken. Der Validitätseffekt in gerundeten Millisekunden soll im Diagramm stehen und auf der Achse auch Millisekunden aufgezeichnet sein. Zeichnet zusätzlich eine rote horizontale Linie bei 0 Millisekunden ein. Diese Linie zeigt das Fehlen eines Validitätseffekts, also keine Aufmerksamkeitsanziehung (siehe Diagramm C der Beispieldiagramme).
+
+```{r}
+dataCorrectInvalid = correctAnswers_dt[targetValidity == 'invalid']
+dataCorrectValid   = correctAnswers_dt[targetValidity == 'valid']
+
+validityEffect_df = aggregate(reactionTime ~ sbj + cueCondition, data = dataCorrectInvalid, mean) # create the means per subject and per cueCondition for the reaction time of the correct answers in the invalid condition
+validityEffect_df[, 3] = validityEffect_df[, 3] - aggregate(reactionTime ~ sbj + cueCondition, data = dataCorrectValid, mean)[, 3] # subtract the means of the valid condition to get the validity effect
+
+# Konfidenzintervalle
+validityEffect_dt <- data.table(validityEffect_df)
+setnames(validityEffect_dt,"reactionTime","validityEffect")
+
+validityEffect_ci <- validityEffect_dt[,
+                                   .(meanValidityEffect = mean(validityEffect),
+                                   seValidityEffect = sd(validityEffect)/sqrt(length(validityEffect)),
+                                   ciValidityEffect = qnorm(0.95) * sd(validityEffect) / sqrt(length(validityEffect))),
+                                   by = cueCondition]
+```
+
+```{r fig.height=5, fig.width=6}
+library(ggplot2)
+library(ggrepel)
+ggplot(validityEffect_ci, 
+       aes(cueCondition, 
+           meanValidityEffect)) + 
+  geom_point(alpha = 0.9) + 
+  scale_fill_viridis_d() + 
+  theme(legend.position = "right",
+        panel.background = element_blank(),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_line(color = "gray"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_line(color = "gray")) +
+  labs(title = "Mean Validity Effect per Condition", 
+       subtitle = "A Comparison between valid and invalid targets",
+       tag = "3",
+       y = "Validity Effect [ms]",
+       x = "Cue Condition", 
+       color = "Target Validity") + 
+  scale_y_continuous(labels = function(x) x * 1000) + 
+  geom_errorbar(aes (ymin  =  meanValidityEffect - ciValidityEffect,
+                     ymax  =  meanValidityEffect + ciValidityEffect),
+                width = 0.1) + 
+  geom_text_repel(aes(label = round(meanValidityEffect * 1000, 0)),
+                  size = 3, 
+                  nudge_x = 0.05,
+                  colour = 'black') + 
+  geom_hline(data = validityEffect_ci,
+             aes(yintercept = 0),
+             linetype = "dashed", 
+             colour = "red")
+```
+
+### 4. Erzeugt ein Diagramm, in dem die Anzahl der Durchgänge mit korrekten Reaktionszeiten jeder Versuchsperson in den experimentellen Bedingungen dargestellt sind. Verwendet dazu ein Balkendiagramm und zeichnet eine schwarze horizontale Linie bei 30 Durchgängen ein (siehe Diagramm D der Beispieldiagramme). Sinn des Ganzen: Nur wenn man mindestens 30 bis 40 Durchgänge in den relevanten experimentellen Bedingungen hat, erreicht man eine halbwegs ausreichende Power bei ca. 20 Versuchspersonen. Und da falsche Antworten ausgeschlossen werden, ist es gut, die Anzahl der Durchgänge jeder Versuchsperson zu visualisieren.
+
+```{r}
+plot4_dt <- correctAnswers_dt[,.(.N), by = .(sbj, targetValidity, cueCondition)]
+```
+```{r fig.height=10, fig.width=12}
+library(ggplot2)
+ggplot(plot4_dt, 
+       aes(x = cueCondition, 
+           y = N, 
+           fill = cueCondition)) + 
+  facet_grid(targetValidity ~ sbj) +
+  geom_col(alpha = 0.9) + 
+  scale_fill_viridis_d() + 
+  theme(legend.position = "right",
+        panel.background = element_blank(),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_line(color = "gray"),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_line(color = "gray"),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  labs(title = "Number of trials with correct answer", 
+       subtitle = "Illustration of all experimental conditions per participant",
+       tag = "4",
+       y = "Number of Trials",
+       x = "Cue Condition", 
+       fill = "Target Validity") +  
+  geom_hline(data = plot4_dt,
+             aes(yintercept = 30),
+             linetype = "solid", 
+             colour = "black")
+```
+
+

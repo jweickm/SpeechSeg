@@ -1,0 +1,46 @@
+---
+title: "data_analysis"
+author: "Jakob Weickmann"
+date: "2020/11/25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+source('data_analysis.R') # contains package setup and data import
+```
+
+# Speech Segmentation Task Data Analysis
+
+This is the documentation of the data analysis for the speech segmentation task in MiBo. 
+
+## Data Preprocessing
+
+```{r dataPreprocessing}
+# ----------------------------------
+# DATA PREPROCESSING
+# ----------------------------------
+
+# select only the data from the testing block
+dataTesting <- dataRaw[dataRaw$Block == 'testing'] 
+
+# calculate absoluteLookingTime
+dataTesting$absoluteLookingTime <- dataTesting$StimulusDuration * (dataTesting$FixationPercent/100)
+
+# exclude trials with less than .5 s of screen fixation time and remove imcomplete cases
+dataTestingTrimmed <- dataTesting[dataTesting$absoluteLookingTime >= 0.5 & complete.cases(dataRaw)]
+```
+
+```{r echo=FALSE}
+# number of trials to be excluded
+excludePercent <- 1 - sum(dataTesting$absoluteLookingTime >= .5, na.rm = TRUE)/length(dataTesting$absoluteLookingTime)
+```
+
+Percentage of trials to be excluded due to an overall looking time that is too short (< .5 s): `r round(100 * excludePercent, 1)` %. 
+
+## First Look at the Data
+```{r dataOverview}
+summary(dataTestingTrimmed)
+```
+

@@ -1,0 +1,6 @@
+# Ignore the following files
+
+*.zip
+*.pdf
+participantsLanguageMonica.csv
+recoveredData.csv
